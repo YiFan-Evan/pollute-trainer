@@ -1,0 +1,1 @@
+--config-file C:\Users\15240\Desktop\experiments\AISFormer\configs\KINS-AmodalSeg/aisformer_R_50_FPN_1x_amodal_kins.yaml --input ./101.jpg --output ./output  --confidence-threshold 0.7  --opts MODEL.WEIGHTS C:\Users\15240\Desktop\experiments\AISFormer\configs\KINS-AmodalSeg/aisformer_r50_kins.pth

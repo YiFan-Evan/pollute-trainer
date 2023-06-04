@@ -1,0 +1,3 @@
+--config-file C:\Users\15240\Desktop\experiments\AISFormer\configs\KINS-AmodalSeg/aisformer_R_50_FPN_1x_amodal_kins.yaml --input ./101.png --output ./output  --confidence-threshold 0.7  --opts MODEL.WEIGHTS C:\Users\15240\Desktop\experiments\AISFormer\configs\KINS-AmodalSeg/aisformer_r50_kins.pth
+
+--config-file C:\Users\15240\Desktop\experiments\AISFormer\configs\COCOA_cls-AmodalSeg\aisformer_R_50_FPN_1x_amodal_cocoa_cls.yaml --input ./101.png --output ./output  --confidence-threshold 0.7  --opts MODEL.WEIGHTS C:\Users\15240\Desktop\experiments\AISFormer\data\train_outputs\aisformer\aisformer_R_50_FPN_1x_amodal_cocoa_cls\model_best.pth
