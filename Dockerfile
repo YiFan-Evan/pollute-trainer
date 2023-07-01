@@ -1,8 +1,10 @@
 FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
 
-COPY ./* /workspace/AISFormer/
-# RUN git clone 
-WORKDIR /workspace/AISFormer/
+# COPY ./* /workspace/AISFormer/
+# RUN git clone
+WORKDIR /workspace/
+RUN git clone https://github.com/YiFan-Evan/pollute-trainer.git
+WORKDIR /workspace/pollute-trainer/
 
 # maybe need to uninstall (but normally they are not exist): protobuf google pytorch_toolbelt 
 RUN apt update \
