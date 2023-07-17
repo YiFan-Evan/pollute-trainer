@@ -35,12 +35,14 @@ The registered object will be called with `obj(cfg, input_shape)`.
 import os
 import matplotlib.pyplot as plt
 
+
 def visualize_featmap(featmap, folder_name):
     path_name = os.path.join('../data/outtest/', folder_name)
     os.makedirs(path_name, exist_ok=True)
     np_featmap = featmap.detach().cpu().numpy()
     for i, fm in enumerate(np_featmap):
-        plt.imsave(os.path.join(path_name, 'sample_{}.png'.format(str(i))),fm.mean(axis=0))
+        plt.imsave(os.path.join(path_name, 'sample_{}.png'.format(str(i))), fm.mean(axis=0))
+
 
 def visualize_prediction_logits(pred_logits, folder_name):
     path_name = os.path.join('../data/outtest/', folder_name)
@@ -51,6 +53,7 @@ def visualize_prediction_logits(pred_logits, folder_name):
         # print(os.path.join(path_name, 'sample_{}.png'.format(str(i))))
         plt.imsave(os.path.join(path_name, 'sample_{}.png'.format(str(i))), logit_mask)
 
+
 def visualize_gt(gts, folder_name):
     path_name = os.path.join('../data/outtest/', folder_name)
     os.makedirs(path_name, exist_ok=True)
@@ -58,11 +61,14 @@ def visualize_gt(gts, folder_name):
     np_gts = gts.detach().cpu().numpy()
     for i, gt in enumerate(np_gts):
         plt.imsave(os.path.join(path_name, 'sample_{}.png'.format(str(i))), gt)
+
+
 # """
 
-def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_bo_logits, pred_boundary_logits_bo, 
-                    use_i_mask=False, pred_a_mask_logits=None, pred_a_boundary_logits=None, use_justify_loss=False, c_iter=None, dice_loss=False,
-                    pred_invisible_mask_logits=None):
+def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_bo_logits, pred_boundary_logits_bo,
+                   use_i_mask=False, pred_a_mask_logits=None, pred_a_boundary_logits=None, use_justify_loss=False,
+                   c_iter=None, dice_loss=False,
+                   pred_invisible_mask_logits=None):
     """
     Compute the mask prediction loss defined in the Mask R-CNN paper.
 
@@ -92,7 +98,6 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
     gt_i_masks = []
     gt_i_boundary = []
 
-
     for instances_per_image in instances:
         if len(instances_per_image) == 0:
             continue
@@ -100,7 +105,7 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
             gt_classes_per_image = instances_per_image.gt_classes.to(dtype=torch.int64)
             gt_classes.append(gt_classes_per_image)
 
-        #print('mask_head.py L59 instances_per_image.gt_masks:', instances_per_image.gt_masks)
+        # print('mask_head.py L59 instances_per_image.gt_masks:', instances_per_image.gt_masks)
         gt_masks_per_image = instances_per_image.gt_masks.crop_and_resize(
             instances_per_image.proposal_boxes.tensor, mask_side_len
         ).to(device=pred_mask_logits.device)
@@ -135,7 +140,6 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
 
             gt_i_boundary.append(cat(i_boundary_ls, dim=0))
 
-
         gt_bo_masks_per_image = instances_per_image.gt_bo_masks.crop_and_resize(
             instances_per_image.proposal_boxes.tensor, mask_side_len
         ).to(device=pred_mask_logits.device)
@@ -152,7 +156,6 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
 
         gt_boundary_bo.append(cat(boundary_ls_bo, dim=0))
 
-
     '''
     if len(gt_masks) == 0:
         return pred_mask_logits.sum() * 0,  pred_boundary_logits.sum() * 0
@@ -160,16 +163,16 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
 
     if use_i_mask:
         if len(gt_i_masks) == 0:
-            return pred_mask_logits.sum() * 0,  pred_boundary_logits.sum() * 0,\
-                    pred_mask_logits.sum() * 0,  pred_boundary_logits.sum() * 0,\
-                    pred_mask_logits.sum() * 0,  pred_boundary_logits.sum() * 0,\
-                    pred_boundary_logits.sum() * 0
+            return pred_mask_logits.sum() * 0, pred_boundary_logits.sum() * 0, \
+                   pred_mask_logits.sum() * 0, pred_boundary_logits.sum() * 0, \
+                   pred_mask_logits.sum() * 0, pred_boundary_logits.sum() * 0, \
+                   pred_boundary_logits.sum() * 0
     else:
         if len(gt_masks) == 0:
-            return pred_mask_logits.sum() * 0,  pred_boundary_logits.sum() * 0,\
-                    pred_mask_logits.sum() * 0,  pred_boundary_logits.sum() * 0,\
-                    pred_mask_logits.sum() * 0,  pred_boundary_logits.sum() * 0,\
-                    pred_boundary_logits.sum() * 0
+            return pred_mask_logits.sum() * 0, pred_boundary_logits.sum() * 0, \
+                   pred_mask_logits.sum() * 0, pred_boundary_logits.sum() * 0, \
+                   pred_mask_logits.sum() * 0, pred_boundary_logits.sum() * 0, \
+                   pred_boundary_logits.sum() * 0
 
     gt_masks = cat(gt_masks, dim=0)
     gt_bo_masks = cat(gt_bo_masks, dim=0)
@@ -180,7 +183,7 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
     if use_i_mask:
         gt_i_masks = cat(gt_i_masks, dim=0)
         gt_i_boundary = cat(gt_i_boundary, dim=0)
-    
+
     if cls_agnostic_mask:
         pred_mask_logits_gt = pred_mask_logits[:, 0]
         pred_bo_mask_logits = pred_mask_bo_logits[:, 0]
@@ -204,7 +207,6 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
         if pred_invisible_mask_logits != None:
             pred_invisible_mask_logits_gt = pred_invisible_mask_logits[:, 0]
 
-    
     if gt_masks.dtype == torch.bool:
         gt_masks_bool = gt_masks
     else:
@@ -233,37 +235,37 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
         )
         false_negative = (mask_incorrect & gt_i_masks_bool).sum().item() / max(num_positive, 1.0)
 
-    indexs2 = torch.nonzero(torch.sum(gt_bo_masks.to(dtype=torch.float32),(1,2)))
+    indexs2 = torch.nonzero(torch.sum(gt_bo_masks.to(dtype=torch.float32), (1, 2)))
 
-    new_gt_bo_masks1 = gt_bo_masks[indexs2,:,:].squeeze()
+    new_gt_bo_masks1 = gt_bo_masks[indexs2, :, :].squeeze()
     new_gt_bo_masks2 = gt_bo_masks[:indexs2.shape[0]]
     if new_gt_bo_masks1.shape != new_gt_bo_masks2.shape:
         new_gt_bo_masks1 = new_gt_bo_masks1.unsqueeze(0)
 
-    new_gt_bo_masks = torch.cat((new_gt_bo_masks1, new_gt_bo_masks2),0)
-    
-    pred_bo_mask_logits1 = pred_bo_mask_logits[indexs2,:,:].squeeze()
+    new_gt_bo_masks = torch.cat((new_gt_bo_masks1, new_gt_bo_masks2), 0)
+
+    pred_bo_mask_logits1 = pred_bo_mask_logits[indexs2, :, :].squeeze()
     pred_bo_mask_logits2 = pred_bo_mask_logits[:indexs2.shape[0]]
     if pred_bo_mask_logits1.shape != pred_bo_mask_logits2.shape:
         pred_bo_mask_logits1 = pred_bo_mask_logits1.unsqueeze(0)
 
-    new_pred_bo_mask_logits = torch.cat((pred_bo_mask_logits1, pred_bo_mask_logits2),0)
- 
-    new_gt_bo_bounds1 = gt_boundary_bo[indexs2,:,:].squeeze()
+    new_pred_bo_mask_logits = torch.cat((pred_bo_mask_logits1, pred_bo_mask_logits2), 0)
+
+    new_gt_bo_bounds1 = gt_boundary_bo[indexs2, :, :].squeeze()
     new_gt_bo_bounds2 = gt_boundary_bo[:indexs2.shape[0]]
     if new_gt_bo_bounds1.shape != new_gt_bo_bounds2.shape:
         new_gt_bo_bounds1 = new_gt_bo_bounds1.unsqueeze(0)
 
-    new_gt_bo_bounds = torch.cat((new_gt_bo_bounds1, new_gt_bo_bounds2),0)
-    
-    pred_bo_bounds_logits1 = pred_boundary_logits_bo[indexs2,:,:].squeeze()
+    new_gt_bo_bounds = torch.cat((new_gt_bo_bounds1, new_gt_bo_bounds2), 0)
+
+    pred_bo_bounds_logits1 = pred_boundary_logits_bo[indexs2, :, :].squeeze()
     pred_bo_bounds_logits2 = pred_boundary_logits_bo[:indexs2.shape[0]]
     if pred_bo_bounds_logits1.shape != pred_bo_bounds_logits2.shape:
         pred_bo_bounds_logits1 = pred_bo_bounds_logits1.unsqueeze(0)
 
-    new_pred_bo_bounds_logits = torch.cat((pred_bo_bounds_logits1, pred_bo_bounds_logits2),0)
+    new_pred_bo_bounds_logits = torch.cat((pred_bo_bounds_logits1, pred_bo_bounds_logits2), 0)
 
-    # Losses               
+    # Losses
     a_mask_loss = torch.tensor(0., requires_grad=True)
     dice_loss_fn = DiceBCELoss()
 
@@ -303,7 +305,7 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
     if use_i_mask:
         bound_loss = L.JointLoss(L.BalancedBCEWithLogitsLoss(), L.BalancedBCEWithLogitsLoss())(
             pred_boundary_logits.unsqueeze(1), gt_i_boundary.to(dtype=torch.float32))
-        
+
         a_bound_loss = L.JointLoss(L.BalancedBCEWithLogitsLoss(), L.BalancedBCEWithLogitsLoss())(
             pred_a_boundary_logits.unsqueeze(1), gt_boundary.to(dtype=torch.float32))
     else:
@@ -311,11 +313,11 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
             pred_boundary_logits.unsqueeze(1), gt_boundary.to(dtype=torch.float32))
         a_bound_loss = torch.tensor(0.)
 
-    if new_gt_bo_masks.shape[0] > 0: 
+    if new_gt_bo_masks.shape[0] > 0:
         if dice_loss:
             bo_mask_loss = dice_loss_fn(
-                    new_pred_bo_mask_logits, new_gt_bo_masks.to(dtype=torch.float32)
-                )
+                new_pred_bo_mask_logits, new_gt_bo_masks.to(dtype=torch.float32)
+            )
         else:
             bo_mask_loss = F.binary_cross_entropy_with_logits(
                 new_pred_bo_mask_logits, new_gt_bo_masks.to(dtype=torch.float32), reduction="mean"
@@ -323,25 +325,24 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
     else:
         # <----------------ccppuu---------------------------->
 
-        bo_mask_loss = torch.tensor(0.0).cuda(mask_loss.get_device())
+        bo_mask_loss = torch.tensor(0.0).cpu()
 
-    if new_gt_bo_bounds.shape[0] > 0: 
+    if new_gt_bo_bounds.shape[0] > 0:
         bo_bound_loss = L.JointLoss(L.BalancedBCEWithLogitsLoss(), L.BalancedBCEWithLogitsLoss())(
             new_pred_bo_bounds_logits.unsqueeze(1), new_gt_bo_bounds.to(dtype=torch.float32))
     else:
         # <----------------ccppuu---------------------------->
 
-        bo_bound_loss = torch.tensor(0.0).cuda(mask_loss.get_device())
+        bo_bound_loss = torch.tensor(0.0).cpu()
 
     rec_loss = torch.tensor(0.)
     if use_justify_loss:
         invisible_part_gt = gt_masks ^ gt_i_masks
-        rec_loss =  F.binary_cross_entropy_with_logits(
-                    pred_invisible_mask_logits_gt, invisible_part_gt.to(dtype=torch.float32), reduction="mean"
-                )
+        rec_loss = F.binary_cross_entropy_with_logits(
+            pred_invisible_mask_logits_gt, invisible_part_gt.to(dtype=torch.float32), reduction="mean"
+        )
 
     return mask_loss, bo_mask_loss, bound_loss, bo_bound_loss, a_mask_loss, a_bound_loss, rec_loss
-
 
 
 def mask_rcnn_inference(pred_mask_logits, bo_mask_logits, bound_logits, bo_bound_logits, pred_instances):
@@ -367,7 +368,7 @@ def mask_rcnn_inference(pred_mask_logits, bo_mask_logits, bound_logits, bo_bound
             to the caller.
     """
     cls_agnostic_mask = pred_mask_logits.size(1) == 1
-    #pred_mask_logits = pred_mask_logits[:,0:1]
+    # pred_mask_logits = pred_mask_logits[:,0:1]
     if cls_agnostic_mask:
         mask_probs_pred = pred_mask_logits.sigmoid()
         bound_probs_pred = bound_logits.sigmoid()
@@ -403,10 +404,11 @@ def mask_rcnn_inference(pred_mask_logits, bo_mask_logits, bound_logits, bo_bound
     for bound_prob, instances in zip(bound_probs_pred, pred_instances):
         instances.pred_bounds = bound_prob  # (1, Hmask, Wmask)
 
-def mask_rcnn_inference_amodal(pred_mask_logits, pred_a_mask_logits, 
-                                occluder_mask_logits, invisible_mask_logits, pred_instances):
+
+def mask_rcnn_inference_amodal(pred_mask_logits, pred_a_mask_logits,
+                               occluder_mask_logits, invisible_mask_logits, pred_instances):
     cls_agnostic_mask = pred_mask_logits.size(1) == 1
-    #pred_mask_logits = pred_mask_logits[:,0:1]
+    # pred_mask_logits = pred_mask_logits[:,0:1]
     if cls_agnostic_mask:
         mask_probs_pred = pred_mask_logits.sigmoid()
         a_mask_probs_pred = pred_a_mask_logits.sigmoid()
@@ -427,7 +429,6 @@ def mask_rcnn_inference_amodal(pred_mask_logits, pred_a_mask_logits,
     occluder_mask_probs_pred = occluder_mask_probs_pred.split(num_boxes_per_image, dim=0)
     invisible_mask_probs_pred = invisible_mask_probs_pred.split(num_boxes_per_image, dim=0)
 
-
     for prob, instances in zip(mask_probs_pred, pred_instances):
         instances.pred_visible_masks = prob
 
@@ -441,7 +442,6 @@ def mask_rcnn_inference_amodal(pred_mask_logits, pred_a_mask_logits,
 
     for prob, instances in zip(invisible_mask_probs_pred, pred_instances):
         instances.pred_invisible_masks = prob  # (1, Hmask, Wmask)
-
 
 
 def count_parameters(model):
@@ -471,11 +471,11 @@ class MaskRCNNConvUpsampleHead(nn.Module):
             assert False, "Invalid custom name for mask head"
         ###############
 
-    def forward(self,x,c_iter,instances=None): # here
-        #from fvcore.nn import FlopCountAnalysis
-        #flops = FlopCountAnalysis(self.mask_head_model, x)
-        #print(flops.total())
-        return self.mask_head_model(x)
+    def forward(self, x, c_iter, instances=None, classes=None):  # here
+        # from fvcore.nn import FlopCountAnalysis
+        # flops = FlopCountAnalysis(self.mask_head_model, x)
+        # print(flops.total())
+        return self.mask_head_model(x, classes)
 
 
 def build_mask_head(cfg, input_shape):
