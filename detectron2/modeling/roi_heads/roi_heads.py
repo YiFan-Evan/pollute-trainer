@@ -834,9 +834,9 @@ class StandardROIHeads(ROIHeads):
             # hardcoding boundary logits to utilize bcnet loss function
 
             # <----------------ccppuu---------------------------->
-            boundary = torch.zeros_like(mask_logits, device='cpu')
-            bo_bound = torch.zeros_like(mask_logits, device='cpu')
-            a_mask_bound = torch.zeros_like(mask_logits, device='cpu')
+            boundary = torch.zeros_like(mask_logits, device='cuda')
+            bo_bound = torch.zeros_like(mask_logits, device='cuda')
+            a_mask_bound = torch.zeros_like(mask_logits, device='cuda')
             # ###
 
             loss_mask, loss_mask_bo, loss_boundary, loss_boundary_bo, loss_a_mask, loss_a_boundary, loss_justify = \
@@ -989,8 +989,8 @@ class StandardROIHeads(ROIHeads):
             # hardcoding boundary logits to utilize bcnet inference function
 
             # <----------------ccppuu---------------------------->
-            boundary = torch.zeros_like(mask_logits, device='cpu')
-            bo_bound = torch.zeros_like(mask_logits, device='cpu')
+            boundary = torch.zeros_like(mask_logits, device='cuda')
+            bo_bound = torch.zeros_like(mask_logits, device='cuda')
             # ###
 
             if self.aisformer.USE and self.aisformer.AMODAL_EVAL:

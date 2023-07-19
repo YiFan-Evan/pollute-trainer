@@ -145,120 +145,130 @@ class AISFormer(nn.Module):
         decoder_layer2 = TransformerDecoderLayer(d_model=emb_dim2, nhead=self.aisformer.N_HEADS, normalize_before=False)
         self.transformer_decoder2 = TransformerDecoder(decoder_layer2, num_layers=self.aisformer.N_LAYERS) # 6 is the default of detr
 
-        n_output_masks = 4 # 4 embeddings, vi_mask, occluder, a_mask, invisible_mask
-        self.query_embed2 = nn.Embedding(num_embeddings=n_output_masks, embedding_dim=emb_dim2)
+        n_output_masks2= 4 # 4 embeddings, vi_mask, occluder, a_mask, invisible_mask
+        self.query_embed2 = nn.Embedding(num_embeddings=n_output_masks2, embedding_dim=emb_dim2)
 
 
     def forward(self, x, classes):
         # shunt
-        x1,x2 = Tensor(),Tensor()
+        x1,x2 = torch.tensor([], device="cuda"), torch.tensor([], device="cuda")
         assert x.shape[0] == classes.shape[0]
+        x1_available = False
+        x2_available = False
         for i in range(x.shape[0]):
             if classes[i] == 1:
                 # x1 = x whose class is 1
                 x1 = torch.cat((x1, x[i].unsqueeze(0)), dim=0)
+                x1_available = True
             else:
                 # x2 = x whose class is 2
                 x2 = torch.cat((x2, x[i].unsqueeze(0)), dim=0)
+                x2_available = True
+        outputs_mask = None
+        outputs_mask2 = None
 
         # --------------------branch one--------------------
-        x_ori = x1.clone()
-        bs = x_ori.shape[0]
-        emb_dim = x_ori.shape[1]
-        spat_size = x_ori.shape[-1]
+        if x1_available:
+            x_ori = x1.clone()
+            bs = x_ori.shape[0]
+            emb_dim = x_ori.shape[1]
+            spat_size = x_ori.shape[-1]
 
-        # short range learning
-        x1 = self.mask_feat_learner_TR(x1)
-        x1 = self.deconv_for_TR(x1)
+            # short range learning
+            x1 = self.mask_feat_learner_TR(x1)
+            x1 = self.deconv_for_TR(x1)
 
-        # position emb
-        pos_embed = self.positional_encoding.forward_tensor(x1)
-        pos_embed = pos_embed.flatten(2).permute(2, 0, 1)
+            # position emb
+            pos_embed = self.positional_encoding.forward_tensor(x1)
+            pos_embed = pos_embed.flatten(2).permute(2, 0, 1)
 
-        # encode
-        feat_embs = x1.flatten(2).permute(2, 0, 1)
-        encoded_feat_embs = self.transformer_encoder(feat_embs,
-                                                    pos=pos_embed)
+            # encode
+            feat_embs = x1.flatten(2).permute(2, 0, 1)
+            encoded_feat_embs = self.transformer_encoder(feat_embs,
+                                                        pos=pos_embed)
 
-        # decode
-        query_embed = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1)
-        tgt = torch.zeros_like(query_embed)
-        decoder_output = self.transformer_decoder(tgt, encoded_feat_embs,
-                                        pos=pos_embed,
-                                        query_pos=query_embed) # (1, n_masks, bs, dim)
+            # decode
+            query_embed = self.query_embed.weight.unsqueeze(1).repeat(1, bs, 1)
+            tgt = torch.zeros_like(query_embed)
+            decoder_output = self.transformer_decoder(tgt, encoded_feat_embs,
+                                            pos=pos_embed,
+                                            query_pos=query_embed) # (1, n_masks, bs, dim)
 
-        decoder_output = decoder_output.squeeze(0).moveaxis(1,0)
+            decoder_output = decoder_output.squeeze(0).moveaxis(1,0)
 
-        # predict mask
-        roi_embeding =  encoded_feat_embs.permute(1,2,0).unflatten(-1, (28,28))
-        roi_embeding = roi_embeding + x1 # long range + short range
-        roi_embeding = self.norm_rois(roi_embeding.permute(0,2,3,1)).permute(0,3,1,2)
-        roi_embeding = self.pixel_embed(roi_embeding)
+            # predict mask
+            roi_embeding =  encoded_feat_embs.permute(1,2,0).unflatten(-1, (28,28))
+            roi_embeding = roi_embeding + x1 # long range + short range
+            roi_embeding = self.norm_rois(roi_embeding.permute(0,2,3,1)).permute(0,3,1,2)
+            roi_embeding = self.pixel_embed(roi_embeding)
 
-        mask_embs = self.mask_embed(decoder_output)
-        if self.aisformer.JUSTIFY_LOSS:
-            assert self.aisformer.USE == True
-            combined_feat = torch.cat([mask_embs[:,2,:],mask_embs[:,0,:]], axis=1)
-            invisible_embs = self.subtract_model(combined_feat)
-            invisible_embs = invisible_embs.unsqueeze(1)
-            mask_embs = torch.concat([mask_embs, invisible_embs], axis=1)
+            mask_embs = self.mask_embed(decoder_output)
+            if self.aisformer.JUSTIFY_LOSS:
+                assert self.aisformer.USE == True
+                combined_feat = torch.cat([mask_embs[:,2,:],mask_embs[:,0,:]], axis=1)
+                invisible_embs = self.subtract_model(combined_feat)
+                invisible_embs = invisible_embs.unsqueeze(1)
+                mask_embs = torch.concat([mask_embs, invisible_embs], axis=1)
 
-        outputs_mask = torch.einsum("bqc,bchw->bqhw", mask_embs, roi_embeding)
+            outputs_mask = torch.einsum("bqc,bchw->bqhw", mask_embs, roi_embeding)
 
         # -------------------branch two--------------------
-        x_ori2 = x2.clone()
-        bs2 = x_ori2.shape[0]
-        emb_dim2 = x_ori2.shape[1]
-        spat_size2 = x_ori2.shape[-1]
+        if x2_available:
+            x_ori2 = x2.clone()
+            bs2 = x_ori2.shape[0]
+            emb_dim2 = x_ori2.shape[1]
+            spat_size2 = x_ori2.shape[-1]
 
-        # short range learning
-        x2 = self.mask_feat_learner_TR2(x2)
-        x2 = self.deconv_for_TR2(x2)
+            # short range learning
+            x2 = self.mask_feat_learner_TR2(x2)
+            x2 = self.deconv_for_TR2(x2)
 
-        # position emb
-        pos_embed2 = self.positional_encoding2.forward_tensor(x2)
-        pos_embed2 = pos_embed2.flatten(2).permute(2, 0, 1)
+            # position emb
+            pos_embed2 = self.positional_encoding2.forward_tensor(x2)
+            pos_embed2 = pos_embed2.flatten(2).permute(2, 0, 1)
 
-        # encode
-        feat_embs2 = x2.flatten(2).permute(2, 0, 1)
-        encoded_feat_embs2 = self.transformer_encoder2(feat_embs2,
-                                                    pos=pos_embed2)
+            # encode
+            feat_embs2 = x2.flatten(2).permute(2, 0, 1)
+            encoded_feat_embs2 = self.transformer_encoder2(feat_embs2,
+                                                        pos=pos_embed2)
 
-        # decode
-        query_embed2 = self.query_embed2.weight.unsqueeze(1).repeat(1, bs2, 1)
-        tgt2 = torch.zeros_like(query_embed2)
-        decoder_output2 = self.transformer_decoder2(tgt2, encoded_feat_embs2,
-                                        pos=pos_embed2,
-                                        query_pos=query_embed2)
+            # decode
+            query_embed2 = self.query_embed2.weight.unsqueeze(1).repeat(1, bs2, 1)
+            tgt2 = torch.zeros_like(query_embed2)
+            decoder_output2 = self.transformer_decoder2(tgt2, encoded_feat_embs2,
+                                            pos=pos_embed2,
+                                            query_pos=query_embed2)
 
-        decoder_output2 = decoder_output2.squeeze(0).moveaxis(1,0)
+            decoder_output2 = decoder_output2.squeeze(0).moveaxis(1,0)
 
-        # predict mask
-        roi_embeding2 =  encoded_feat_embs2.permute(1,2,0).unflatten(-1, (28,28))
-        roi_embeding2 = roi_embeding2 + x2 # long range + short range
-        roi_embeding2 = self.norm_rois2(roi_embeding2.permute(0,2,3,1)).permute(0,3,1,2)
-        roi_embeding2 = self.pixel_embed2(roi_embeding2)
+            # predict mask
+            roi_embeding2 =  encoded_feat_embs2.permute(1,2,0).unflatten(-1, (28,28))
+            roi_embeding2 = roi_embeding2 + x2 # long range + short range
+            roi_embeding2 = self.norm_rois2(roi_embeding2.permute(0,2,3,1)).permute(0,3,1,2)
+            roi_embeding2 = self.pixel_embed2(roi_embeding2)
 
-        mask_embs2 = self.mask_embed2(decoder_output2)
-        if self.aisformer.JUSTIFY_LOSS:
-            assert self.aisformer.USE == True
-            combined_feat2 = torch.cat([mask_embs2[:,2,:],mask_embs2[:,0,:]], axis=1)
-            invisible_embs2 = self.subtract_model2(combined_feat2)
-            invisible_embs2 = invisible_embs2.unsqueeze(1)
-            mask_embs2 = torch.concat([mask_embs2, invisible_embs2], axis=1)
+            mask_embs2 = self.mask_embed2(decoder_output2)
+            if self.aisformer.JUSTIFY_LOSS:
+                assert self.aisformer.USE == True
+                combined_feat2 = torch.cat([mask_embs2[:,2,:],mask_embs2[:,0,:]], axis=1)
+                invisible_embs2 = self.subtract_model2(combined_feat2)
+                invisible_embs2 = invisible_embs2.unsqueeze(1)
+                mask_embs2 = torch.concat([mask_embs2, invisible_embs2], axis=1)
 
-        outputs_mask2 = torch.einsum("bqc,bchw->bqhw", mask_embs2, roi_embeding2)
+            outputs_mask2 = torch.einsum("bqc,bchw->bqhw", mask_embs2, roi_embeding2)
 
-        outputs_mask_all = Tensor()
+        outputs_mask_all = torch.tensor([], device="cuda")
         count1 = 0
         count2 = 0
         for i in range(len(classes)):
             if classes[i] == 1:
-                outputs_mask_all = torch.cat((outputs_mask_all, outputs_mask[count1].unsqueeze(0)), dim=0)
-                count1 += 1
+                if x1_available and outputs_mask is not None:
+                    outputs_mask_all = torch.cat((outputs_mask_all, outputs_mask[count1].unsqueeze(0)), dim=0)
+                    count1 += 1
             else:
-                outputs_mask_all = torch.cat((outputs_mask_all, outputs_mask2[count2].unsqueeze(0)), dim=0)
-                count2 += 1
+                if x2_available and outputs_mask2 is not None:
+                    outputs_mask_all = torch.cat((outputs_mask_all, outputs_mask2[count2].unsqueeze(0)), dim=0)
+                    count2 += 1
         assert count1+count2 == len(classes)
         outputs_mask = outputs_mask_all
 
@@ -270,6 +280,6 @@ class AISFormer(nn.Module):
         invisible_masks = outputs_mask[:, -1, :, :].unsqueeze(1)  # invisible mask
         # <----------------ccppuu---------------------------->
 
-        dump_tensor = torch.zeros_like(vi_masks).to(device='cpu')
+        dump_tensor = torch.zeros_like(vi_masks).to(device='cuda')
 
         return vi_masks, bo_masks, a_masks, invisible_masks

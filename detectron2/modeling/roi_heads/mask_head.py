@@ -325,7 +325,7 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
     else:
         # <----------------ccppuu---------------------------->
 
-        bo_mask_loss = torch.tensor(0.0).cpu()
+        bo_mask_loss = torch.tensor(0.0).cuda(mask_loss.get_device())
 
     if new_gt_bo_bounds.shape[0] > 0:
         bo_bound_loss = L.JointLoss(L.BalancedBCEWithLogitsLoss(), L.BalancedBCEWithLogitsLoss())(
@@ -333,7 +333,7 @@ def mask_rcnn_loss(pred_mask_logits, pred_boundary_logits, instances, pred_mask_
     else:
         # <----------------ccppuu---------------------------->
 
-        bo_bound_loss = torch.tensor(0.0).cpu()
+        bo_bound_loss = torch.tensor(0.0).cuda(mask_loss.get_device())
 
     rec_loss = torch.tensor(0.)
     if use_justify_loss:
